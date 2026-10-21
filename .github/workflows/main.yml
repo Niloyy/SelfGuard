@@ -1,0 +1,26 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip project
+        run: |
+          unzip -q SelfGuard.zip
+          mkdir -p SelfGuard/app/src/main/assets
+          if [ -f nsfw.tflite ]; then cp nsfw.tflite SelfGuard/app/src/main/assets/; fi
+          if [ -n "$MODEL_URL" ]; then curl -L "$MODEL_URL" -o SelfGuard/app/src/main/assets/nsfw.tflite; fi
+          ls -la SelfGuard/app/src/main/assets
+        env:
+          MODEL_URL: ${{ vars.MODEL_URL }}
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v3
+        with: { gradle-version: "8.5" }
+      - name: Build
+        run: cd SelfGuard && gradle assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SelfGuard-apk
+          path: SelfGuard/app/build/outputs/apk/debug/app-debug.apk
